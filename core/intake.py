@@ -13,7 +13,7 @@ def intake_questions(user_text: str) -> list[str]:
     if "throat" in text or "sore throat" in text:
         questions.append("Any fever? If yes, what’s the highest temperature?")
         questions.append("Any trouble swallowing?")
-    if "stomach" in text or "nausea" in text in text:
+    if "stomach" in text or "nausea" in text:
         questions.append("Can you keep fluids down?")
         questions.append("Any severe abdominal pain?")
     if "headache" in text:
@@ -22,3 +22,13 @@ def intake_questions(user_text: str) -> list[str]:
         questions.append("Did this start after lifting/exercise? Any numbness/weakness down your legs?")
 
     return questions[:6]  # keep it short
+
+from core.symptoms.sore_throat import (
+    matches_sore_throat,
+    sore_throat_guidance
+)
+
+def analyze_symptom(user_text: str):
+    if matches_sore_throat(user_text):
+        return sore_throat_guidance()
+    return None

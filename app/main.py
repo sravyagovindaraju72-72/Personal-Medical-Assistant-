@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 import streamlit as st
-from core.intake import intake_questions
+from core.intake import intake_questions, analyze_symptom
 
 st.set_page_config(page_title="Your Personal Medical Assistant", page_icon="🩺", layout="centered")
 
@@ -36,26 +36,17 @@ if clear:
     st.rerun()
 
 if submit and user_text.strip():
-    # For now: no LLM. Just show a structured follow-up plan.
     questions = intake_questions(user_text)
+    guidance = analyze_symptom(user_text)
 
     response = {
         "user": user_text,
         "assistant": {
             "follow_ups": questions,
-            "self_care": [
-                "Hydrate (water/warm liquids (e.g. herbal tea)).",
-                "Rest and sleep. Aim for a full night (8-10 hours) if possible.",
-                "If sore throat: warm tea/honey (if safe for you) and salt-water gargle."
-            ],
-            "red_flags": [
-                "Trouble breathing",
-                "Chest pain",
-                "Severe dehydration (can’t keep fluids down)",
-                "Confusion/fainting",
-                "High fever that persists"
-            ],
-            "next_step": "How long as this been happening and how severe are your symptoms (1–10). Include any red flags listed above."
+            "self_care": guidance["self_care"] if guidance else [],
+            "red_flags": guidance["red_flags"] if guidance else [],
+            "when_to_seek_care": guidance["when_to_seek_care"] if guidance else [],
+            "sources": guidance["sources"] if guidance else []
         }
     }
     st.session_state.history.append(response)
@@ -77,5 +68,13 @@ if st.session_state.history:
         st.write("**Red flags (seek care if present):**")
         for rf in item["assistant"]["red_flags"]:
             st.write(f"- {rf}")
-        st.info(item["assistant"]["next_step"])
+        #st.info(item["assistant"]["next_step"])
         st.divider()
+        if item["assistant"]["when_to_seek_care"]:
+            st.write("**When to seek care:**")
+            for w in item["assistant"]["when_to_seek_care"]:
+                st.write(f"- {w}")
+        if item["assistant"]["sources"]:
+            st.write("**Sources:**")
+            for src in item["assistant"]["sources"]:
+                st.write(f"- [{src['name']}]({src['url']})")
