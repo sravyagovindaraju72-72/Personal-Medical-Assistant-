@@ -3,6 +3,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 import streamlit as st
 from core.intake import intake_questions, analyze_symptom
+from core.ai_client import get_ai_response
 
 st.set_page_config(page_title="Your Personal Medical Assistant", page_icon="🩺", layout="centered")
 
@@ -38,6 +39,7 @@ if clear:
 if submit and user_text.strip():
     questions = intake_questions(user_text)
     guidance = analyze_symptom(user_text)
+    ai_output = get_ai_response(user_text)
 
     response = {
         "user": user_text,
@@ -46,7 +48,8 @@ if submit and user_text.strip():
             "self_care": guidance["self_care"] if guidance else [],
             "red_flags": guidance["red_flags"] if guidance else [],
             "when_to_seek_care": guidance["when_to_seek_care"] if guidance else [],
-            "sources": guidance["sources"] if guidance else []
+            "sources": guidance["sources"] if guidance else [],
+            "ai_output": ai_output,
         }
     }
     st.session_state.history.append(response)
@@ -68,6 +71,8 @@ if st.session_state.history:
         st.write("**Red flags (seek care if present):**")
         for rf in item["assistant"]["red_flags"]:
             st.write(f"- {rf}")
+        st.write("**AI Guidance:**")
+        st.write(item["assistant"]["ai_output"])
         #st.info(item["assistant"]["next_step"])
         st.divider()
         if item["assistant"]["when_to_seek_care"]:
