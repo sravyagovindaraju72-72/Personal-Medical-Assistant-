@@ -7,6 +7,7 @@ from core.ai_client import get_ai_response
 from core.input_validator import validate_symptom_input
 from core.response_parser import parse_ai_response, validate_recommendations_structure
 from core.amazon_links import add_amazon_links_to_recommendations
+from core.red_flag_detector import check_for_emergency 
 
 # Must be first Streamlit call
 st.set_page_config(
@@ -26,84 +27,114 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Lato:wght@300;400;600&display=swap');
 
-html, body, [class*="css"] {
-    font-family: 'Lato', sans-serif;
-    background-color: #FAF6EF;
-    color: #2C1A0E;
+/* Force light theme background everywhere */
+html, body, [class*="css"], .stApp, .main, section[data-testid="stSidebar"] {
+    font-family: 'Lato', sans-serif !important;
+    background-color: #FAF6EF !important;
+    color: #2C1A0E !important;
 }
+
+/* Override Streamlit dark mode defaults */
+.stApp {
+    background-color: #FAF6EF !important;
+}
+
 .block-container {
     max-width: 720px;
     padding-top: 2rem;
+    background-color: #FAF6EF !important;
 }
-h1, h2, h3 {
+
+/* Force all text to dark color */
+p, span, div, label, .stMarkdown, .stText {
+    color: #2C1A0E !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
     font-family: 'Playfair Display', Georgia, serif !important;
     color: #2C1A0E !important;
 }
+
+/* Logo / Header Row */
 .mend-logo-row {
     display: flex;
     align-items: center;
     gap: 12px;
     margin-bottom: 8px;
+    padding: 8px 0;
 }
 .mend-logo-icon {
     background: linear-gradient(135deg, #5C7A4E, #7A9E6A);
     border-radius: 12px;
-    width: 48px;
-    height: 48px;
+    width: 52px;
+    height: 52px;
+    min-width: 52px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
+    font-size: 26px;
+    flex-shrink: 0;
 }
 .mend-title {
-    font-family: 'Playfair Display', serif;
-    font-size: 28px;
-    font-weight: 700;
-    color: #2C1A0E;
-    line-height: 1;
+    font-family: 'Playfair Display', serif !important;
+    font-size: 32px !important;
+    font-weight: 700 !important;
+    color: #2C1A0E !important;
+    line-height: 1.1;
+    white-space: nowrap;
 }
 .mend-subtitle {
-    font-size: 11px;
-    color: #7A6555;
+    font-size: 11px !important;
+    color: #7A6555 !important;
     letter-spacing: 2px;
     text-transform: uppercase;
+    white-space: nowrap;
 }
+
+/* Banners */
 .emergency-banner {
     padding: 14px 18px;
     border-radius: 10px;
-    background-color: #FFF0F0;
+    background-color: #FFF0F0 !important;
     border: 1px solid #F0C0C0;
     border-left: 4px solid #D05050;
-    color: #8B3030;
+    color: #8B3030 !important;
     margin-bottom: 16px;
     font-size: 14px;
     line-height: 1.6;
 }
+.emergency-banner * { color: #8B3030 !important; }
+
 .disclaimer-banner {
     padding: 14px 18px;
     border-radius: 10px;
-    background-color: #FFFBF0;
+    background-color: #FFFBF0 !important;
     border: 1px solid #E8D5A0;
     border-left: 4px solid #C4794A;
-    color: #7A5533;
+    color: #7A5533 !important;
     margin-bottom: 20px;
     font-size: 13px;
     line-height: 1.6;
 }
+.disclaimer-banner * { color: #7A5533 !important; }
+
 .disclaimer-title {
-    font-family: 'Playfair Display', serif;
+    font-family: 'Playfair Display', serif !important;
     font-weight: 700;
-    font-size: 14px;
-    color: #C4794A;
+    font-size: 14px !important;
+    color: #C4794A !important;
     margin-bottom: 6px;
 }
+
 .input-label {
-    font-family: 'Playfair Display', serif;
-    font-size: 22px;
-    font-weight: 600;
-    color: #2C1A0E;
+    font-family: 'Playfair Display', serif !important;
+    font-size: 22px !important;
+    font-weight: 600 !important;
+    color: #2C1A0E !important;
     margin-bottom: 16px;
 }
+
+/* Buttons */
 .stButton > button[kind="primary"] {
     background: linear-gradient(135deg, #5C7A4E, #7A9E6A) !important;
     color: white !important;
@@ -117,8 +148,38 @@ h1, h2, h3 {
     border-radius: 10px !important;
     font-family: 'Lato', sans-serif !important;
     border: 1px solid #E0D5C5 !important;
-    color: #7A6555 !important;
+    color: #2C1A0E !important;
+    background-color: #FFFFFF !important;
 }
+
+/* View on Amazon link buttons — cream/white text */
+.stLinkButton a,
+.stLinkButton > a,
+[data-testid="stLinkButton"] a,
+div[data-testid="stLinkButton"] a,
+.stLinkButton a:link,
+.stLinkButton a:visited {
+    color: #FAF6EF !important;
+    border-radius: 10px !important;
+    font-family: 'Lato', sans-serif !important;
+    text-decoration: none !important;
+}
+.stLinkButton a:hover,
+[data-testid="stLinkButton"] a:hover {
+    color: #FFFFFF !important;
+}
+.stLinkButton a *,
+.stLinkButton a p,
+.stLinkButton a span,
+.stLinkButton a div,
+.stLinkButton a label,
+[data-testid="stLinkButton"] a *,
+[data-testid="stLinkButton"] a p,
+[data-testid="stLinkButton"] a span {
+    color: #FAF6EF !important;
+}
+
+/* Inputs */
 .stTextArea textarea, .stTextInput input {
     border-radius: 10px !important;
     border: 1px solid #E0D5C5 !important;
@@ -131,66 +192,116 @@ h1, h2, h3 {
     border-color: #5C7A4E !important;
     box-shadow: 0 0 0 3px rgba(92,122,78,0.15) !important;
 }
+.stTextArea textarea::placeholder, .stTextInput input::placeholder {
+    color: #A09080 !important;
+}
+
+/* Cards */
 .result-card {
-    background: #FFFFFF;
+    background: #FFFFFF !important;
     border: 1px solid #E0D5C5;
     border-radius: 14px;
     padding: 20px;
     margin-bottom: 16px;
 }
 .result-card-title {
-    font-family: 'Playfair Display', serif;
-    font-size: 16px;
-    font-weight: 700;
-    color: #2C1A0E;
+    font-family: 'Playfair Display', serif !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    color: #2C1A0E !important;
     margin-bottom: 12px;
     padding-bottom: 8px;
     border-bottom: 2px solid #EAF0E6;
 }
 .recommendation-card {
-    background: #FFFFFF;
+    background: #FFFFFF !important;
     border: 1px solid #E0D5C5;
     border-radius: 14px;
     padding: 18px;
     margin-bottom: 12px;
 }
 .recommendation-title {
-    font-family: 'Playfair Display', serif;
-    font-size: 15px;
-    font-weight: 600;
-    color: #2C1A0E;
+    font-family: 'Playfair Display', serif !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    color: #2C1A0E !important;
     margin-bottom: 8px;
 }
 .recommendation-text {
-    font-size: 13px;
-    color: #7A6555;
+    font-size: 13px !important;
+    color: #5A4A3A !important;
     line-height: 1.6;
 }
+
 hr { border-color: #E0D5C5 !important; }
+
+/* Streamlit native alert/info boxes */
 .stAlert {
     background-color: #FFF8EE !important;
     border: 1px solid #E0D5C5 !important;
     border-radius: 12px !important;
     color: #2C1A0E !important;
 }
+.stAlert p, .stAlert span, .stAlert div {
+    color: #2C1A0E !important;
+}
+
+/* Expander */
+.streamlit-expanderHeader {
+    background-color: #FFFFFF !important;
+    color: #2C1A0E !important;
+    border: 1px solid #E0D5C5 !important;
+    border-radius: 10px !important;
+}
+.streamlit-expanderContent {
+    background-color: #FDFAF5 !important;
+    color: #2C1A0E !important;
+    border: 1px solid #E0D5C5 !important;
+}
+
+/* Caption */
+.stCaption, small {
+    color: #7A6555 !important;
+}
+
+/* Category headers */
+.category-header {
+    font-family: 'Playfair Display', serif !important;
+    font-size: 20px !important;
+    font-weight: 700 !important;
+    color: #5C7A4E !important;
+    margin-top: 24px;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #EAF0E6;
+}
+
+/* Footer */
 .mend-footer {
     text-align: center;
-    color: #7A6555;
+    color: #7A6555 !important;
     font-size: 12px;
     font-style: italic;
     margin-top: 40px;
     padding-top: 20px;
     border-top: 1px solid #E0D5C5;
 }
-.category-header {
-    font-family: 'Playfair Display', serif;
-    font-size: 20px;
-    font-weight: 700;
-    color: #5C7A4E;
-    margin-top: 24px;
-    margin-bottom: 16px;
-    padding-bottom: 8px;
-    border-bottom: 2px solid #EAF0E6;
+
+/* Spinner text */
+.stSpinner > div {
+    color: #5C7A4E !important;
+}
+
+/* Nuclear override: any anchor inside a Streamlit link button widget */
+div.stLinkButton a,
+div.stLinkButton a:link,
+div.stLinkButton a:visited,
+div.stLinkButton a:hover,
+div.stLinkButton a:active,
+div.stLinkButton a span,
+div.stLinkButton a p {
+    color: #FAF6EF !important;
+    -webkit-text-fill-color: #FAF6EF !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -201,7 +312,7 @@ hr { border-color: #E0D5C5 !important; }
 st.markdown("""
 <div class="mend-logo-row">
     <div class="mend-logo-icon">🌱</div>
-    <div>
+    <div style="overflow: visible;">
         <div class="mend-title">Mend</div>
         <div class="mend-subtitle">Natural Relief Guide</div>
     </div>
@@ -268,24 +379,53 @@ st.markdown("---")
 # ===========================
 # SUBMIT LOGIC
 # ===========================
+
 if submit_button and user_input.strip():
-    
+
     # Step 1: Validate input
     validation_result = validate_symptom_input(user_input)
-    
+
     if not validation_result['valid']:
-        st.error(f"❌ {validation_result['error_message']}")
+        st.error(f"{validation_result['error_message']}")
         st.stop()
-    
+
     cleaned_symptom = validation_result['cleaned_input']
-    
-    # Step 2: Get AI recommendations
+
+    # Step 2: Check emergencies
+    if check_for_emergency(cleaned_symptom):
+        st.markdown("""
+        <div style='
+            background: linear-gradient(135deg, #DC2626, #EF4444);
+            color: white;
+            padding: 24px;
+            border-radius: 12px;
+            border: 3px solid #DC2626;
+            margin: 20px 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        '>
+            <h2 style='margin: 0; font-size: 28px; color: white !important; font-family: Playfair Display, serif;'>
+                🚨 EMERGENCY DETECTED
+            </h2>
+            <p style='margin-top: 12px; font-size: 16px; color: white !important; line-height: 1.6;'>
+                Your symptoms may require immediate medical attention.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.write("")
+        st.subheader("⚕️ What to do RIGHT NOW:")
+        st.markdown("- ☎️ **Call 911 immediately** or have someone take you to the ER")
+        st.markdown("- 🏥 **Go to the emergency room** - do NOT drive yourself")
+        st.markdown("- 📱 **Call campus security** if on campus (they can help)")
+        st.markdown("- 👥 **Stay with someone** - don't be alone")
+        st.write("")
+
+        st.warning("⚠️ **This app cannot help with emergency situations.** Please seek immediate medical care. If you're alone, call 911 and unlock your door for responders.")
+        st.stop()
+
+    # Step 3: Only call AI if NOT an emergency
     with st.spinner("🔍 Analyzing your symptom and generating recommendations..."):
-        
-        # Get AI response
         ai_response = get_ai_response(cleaned_symptom)
-        
-        # Parse the response
         parsed_result = parse_ai_response(ai_response)
         
         if parsed_result['error']:
@@ -295,7 +435,6 @@ if submit_button and user_input.strip():
         
         recommendations = parsed_result['recommendations']
         
-        # Check if we got structured recommendations
         if not recommendations or not validate_recommendations_structure(recommendations):
             st.warning("⚠️ Received response in unexpected format")
             if 'raw_response' in parsed_result:
@@ -303,16 +442,13 @@ if submit_button and user_input.strip():
             st.info("Please update the AI prompt to return JSON format")
             st.stop()
         
-        # Add Amazon links
         recommendations = add_amazon_links_to_recommendations(recommendations)
         
-        # Save to history
         st.session_state.history.append({
             'symptom': cleaned_symptom,
             'recommendations': recommendations
         })
     
-    # Display success
     st.success("✅ Recommendations generated!")
 
 # ===========================
@@ -323,14 +459,13 @@ if st.session_state.history:
     for item in reversed(st.session_state.history):
         recommendations = item['recommendations']
         
-        st.markdown(f'<h2 style="font-family: Playfair Display, serif; font-size: 22px; color: #2C1A0E;">Your Relief Guide for: {item["symptom"]}</h2>', unsafe_allow_html=True)
+        st.markdown(f'<h2 style="font-family: Playfair Display, serif; font-size: 22px; color: #2C1A0E !important;">Your Relief Guide for: {item["symptom"]}</h2>', unsafe_allow_html=True)
         
-        # Display medical note if present
         if recommendations.get('medical_note') and recommendations['medical_note'].strip():
             st.warning(f"⚕️ **Medical Guidance:** {recommendations['medical_note']}")
             st.write("")
         
-        # Display Herbal Teas
+        # Herbal Teas
         if recommendations.get('teas'):
             st.markdown('<div class="category-header">🍵 Herbal Teas</div>', unsafe_allow_html=True)
             
@@ -343,14 +478,10 @@ if st.session_state.history:
                 """, unsafe_allow_html=True)
                 
                 if tea.get('amazon_link'):
-                    st.link_button(
-                        "🛒 View on Amazon",
-                        tea['amazon_link'],
-                        use_container_width=True
-                    )
+                    st.link_button("🛒 View on Amazon", tea['amazon_link'], use_container_width=True)
                 st.write("")
         
-        # Display OTC Medications
+        # OTC Medications
         if recommendations.get('medications'):
             st.markdown('<div class="category-header">💊 Over-the-Counter Options</div>', unsafe_allow_html=True)
             
@@ -363,14 +494,10 @@ if st.session_state.history:
                 """, unsafe_allow_html=True)
                 
                 if med.get('amazon_link'):
-                    st.link_button(
-                        "🛒 View on Amazon",
-                        med['amazon_link'],
-                        use_container_width=True
-                    )
+                    st.link_button("🛒 View on Amazon", med['amazon_link'], use_container_width=True)
                 st.write("")
         
-        # Display Exercises/Remedies
+        # Exercises/Remedies
         if recommendations.get('exercises'):
             st.markdown('<div class="category-header">🧘 Exercises & Home Remedies</div>', unsafe_allow_html=True)
             
@@ -383,7 +510,7 @@ if st.session_state.history:
                 """, unsafe_allow_html=True)
                 st.write("")
         
-        # Display Helpful Products
+        # Helpful Products
         if recommendations.get('products'):
             st.markdown('<div class="category-header">🛍️ Helpful Products</div>', unsafe_allow_html=True)
             
@@ -396,14 +523,9 @@ if st.session_state.history:
                 """, unsafe_allow_html=True)
                 
                 if product.get('amazon_link'):
-                    st.link_button(
-                        "🛒 View on Amazon",
-                        product['amazon_link'],
-                        use_container_width=True
-                    )
+                    st.link_button("🛒 View on Amazon", product['amazon_link'], use_container_width=True)
                 st.write("")
         
-        # Footer reminder
         st.info("💡 **Reminder:** These are general wellness suggestions. Consult a healthcare provider for personalized medical advice.")
         st.markdown("---")
 
